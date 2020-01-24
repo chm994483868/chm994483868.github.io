@@ -218,7 +218,7 @@
                   <i class="fa fa-calendar-check-o"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2020-01-21 16:05:16" itemprop="dateModified" datetime="2020-01-21T16:05:16+08:00">2020-01-21</time>
+                <time title="Modified: 2020-01-24 19:28:14" itemprop="dateModified" datetime="2020-01-24T19:28:14+08:00">2020-01-24</time>
               </span>
 
           
@@ -239,17 +239,19 @@
 <h2 id="在-runtime-中创建一个-class"><a href="#在-runtime-中创建一个-class" class="headerlink" title="在 runtime 中创建一个 class"></a>在 runtime 中创建一个 class</h2><p> 以下代码在 runtime 中创建一个 NSError 的新 subclass 并向其中添加一个方法：</p>
 <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">Class newClass &#x3D; objc_allocateClassPair([NSError class], &quot;RuntimeErrorSubclass&quot;, 0);</span><br><span class="line">class_addMethod(newClass, @selector(report), (IMP)ReportFunction, &quot;v@:&quot;);</span><br><span class="line">objc_registerClassPair(newClass);</span><br></pre></td></tr></table></figure>
 
-<p>objc4-756.2 中 objc_allocateClassPair 函数的定义：</p>
+<p>objc4-756.2 中 <code>objc_allocateClassPair</code> 函数的定义：</p>
 <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br></pre></td><td class="code"><pre><span class="line">&#x2F;* Adding Classes *&#x2F;</span><br><span class="line"></span><br><span class="line">&#x2F;** </span><br><span class="line"> * 创建一个 new class 和 metaclass.</span><br><span class="line"> * </span><br><span class="line"> * @param superclass 用作 new class 的 superclass 的 class，或者为 Nil 创建一个 new root class.</span><br><span class="line"> * @param name 用作 new class 的名字的字符串。该字符串将被复制。</span><br><span class="line"> * @param extraBytes 在 class 和 metaclass objects 末尾要分配给 indexed ivars 的字节数。通常应为 0。</span><br><span class="line"> * </span><br><span class="line"> * </span><br><span class="line"> * @return new class，如果无法创建则返回 Nil（例如：所需的名字已经在使用中）。</span><br><span class="line"> *</span><br><span class="line"> * @note 你可以通过调用 object_getClass(newClass) 获得指向 new metaclass 的指针。</span><br><span class="line"> * @note 要创建一个 new class，请先调用 objc_allocateClassPair。</span><br><span class="line"> * 然后通过 class_addMethod 和 class_addIvar 之类的函数设置 class&#39;s attributes。</span><br><span class="line"> * 当你完成 class 的构建后，调用 objc_registerClassPair，就可以使用 new class。</span><br><span class="line"> * @note Instance methods 和 instance variables 应该添加到 class 本身。</span><br><span class="line"> * Class methods 应该添加到 metaclass.</span><br><span class="line"> *&#x2F;</span><br><span class="line">OBJC_EXPORT Class _Nullable</span><br><span class="line">objc_allocateClassPair(Class _Nullable superclass, const char * _Nonnull name, </span><br><span class="line">                       size_t extraBytes) </span><br><span class="line">    OBJC_AVAILABLE(10.5, 2.0, 9.0, 1.0, 2.0);</span><br></pre></td></tr></table></figure>
 
-<p>添加的方法使用名为 ReportFunction 的函数作为其实现，其定义如下:</p>
+<p>添加的方法使用名为 <code>ReportFunction</code> 的函数作为其实现，其定义如下:</p>
 <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line">void ReportFunction(id self, SEL _cmd) &#123;</span><br><span class="line">    NSLog(@&quot;This object is %p.&quot;, self);</span><br><span class="line">    NSLog(@&quot;Class is %@, and super is %@.&quot;, [self class], [self superclass]);</span><br><span class="line">    </span><br><span class="line">    Class currentClass &#x3D; [self class];</span><br><span class="line">    for (int i &#x3D; 1; i &lt; 5; i++) &#123;</span><br><span class="line">        NSLog(@&quot;Following the isa pointer %d times gives %p&quot;, i, currentClass);</span><br><span class="line">        currentClass &#x3D; object_getClass(currentClass);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    NSLog(@&quot;NSObject&#39;s class is %p&quot;, [NSObject class]);</span><br><span class="line">    NSLog(@&quot;NSObject&#39;s meta class is %p&quot;, object_getClass([NSObject class]));</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
 
 <p>在表面上，这非常简单。在 runtime 中创建一个 class 只需要三个简单的步骤：</p>
 <ol>
-<li>为 “class pair” 分配存储空间（使用 objc_allocateClassPair）。</li>
-<li></li>
+<li>为 “class pair” 分配存储空间（使用 <code>objc_allocateClassPair</code>）。</li>
+<li>根据需要向 class 中添加 methods 和 ivars（我们使用 <code>class_addMethods</code>添加了一个 method）。</li>
+<li>注册这个 class 以便能使用它（使用 <code>objc_registerClassPair</code>）。</li>
 </ol>
+<p>然而，当前比较紧迫的问题是：什么是 “class pair” ？<code>objc_allocateClassPair</code>仅返回一个值：class。另一半在哪呢？</p>
 
       
     </div>
