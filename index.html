@@ -218,7 +218,7 @@
                   <i class="fa fa-calendar-check-o"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2020-01-29 19:45:53" itemprop="dateModified" datetime="2020-01-29T19:45:53+08:00">2020-01-29</time>
+                <time title="Modified: 2020-02-03 13:20:50" itemprop="dateModified" datetime="2020-02-03T13:20:50+08:00">2020-02-03</time>
               </span>
 
           
@@ -253,7 +253,23 @@
 </ol>
 <p>然而，当前比较紧迫的问题是：什么是 “class pair” ？<code>objc_allocateClassPair</code>仅返回一个值：class。另一半在哪呢？</p>
 <p>我确定你猜对了另一半就是 meta-class （这是本文章的标题），但要解释它是什么以及为什么你需要它，接下来看一些在 Objecttive-C 中 objects 和 classes 的背景知识。</p>
-<h2 id="数据结构-可理解为原始数据-成为-Object-需要什么"><a href="#数据结构-可理解为原始数据-成为-Object-需要什么" class="headerlink" title="数据结构(可理解为原始数据)成为 Object 需要什么?"></a>数据结构(可理解为原始数据)成为 Object 需要什么?</h2><p>每一个 object 都有一个 class。</p>
+<h2 id="数据结构-可理解为原始数据-成为-Object-需要什么"><a href="#数据结构-可理解为原始数据-成为-Object-需要什么" class="headerlink" title="数据结构(可理解为原始数据)成为 Object 需要什么?"></a>数据结构(可理解为原始数据)成为 Object 需要什么?</h2><p>每一个 object 都有一个 class。这是一个基本的面向对象的概念，但是在 Objective-C 中它也是数据的基本部分。任何在正确位置具有指向 class 的指针的数据结构都可以视为 object。</p>
+<p>在 Objective-C 中，object 的 class 由 isa 指针确定（在 <em>OBJC2_</em> 中 isa 已经不是一个 class 的指针，是一个名为 <code>isa_t</code> 的 union,  object 的 class 则由 <code>union isa_t</code> 中的 <code>Class cls</code> 决定），isa 指针指向 object 的 class。</p>
+<p>实际上，Objective-C 中 object 的基本定义如下所示：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">&#x2F;&#x2F;&#x2F; 旧版定义</span><br><span class="line">&#x2F;&#x2F;&#x2F; Represents an instance of a class.</span><br><span class="line">struct objc_object &#123;</span><br><span class="line">    Class _Nonnull isa  OBJC_ISA_AVAILABILITY;</span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line">&#x2F;&#x2F;&#x2F; A pointer to an instance of a class.</span><br><span class="line">typedef struct objc_object *id;</span><br></pre></td></tr></table></figure>
+
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br></pre></td><td class="code"><pre><span class="line">&#x2F;&#x2F;&#x2F; 新版定义</span><br><span class="line">struct objc_object &#123;</span><br><span class="line">private:</span><br><span class="line">    isa_t isa;</span><br><span class="line"></span><br><span class="line">public:</span><br><span class="line"></span><br><span class="line">    &#x2F;&#x2F; ISA() assumes this is NOT a tagged pointer object</span><br><span class="line">    Class ISA();</span><br><span class="line">    ...</span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line">typedef struct objc_object *id;</span><br><span class="line">&#x2F;&#x2F;&#x2F; 作为一个极其重要的联合体，下篇文章在详细分析。</span><br><span class="line">union isa_t &#123;</span><br><span class="line">    isa_t() &#123; &#125;</span><br><span class="line">    isa_t(uintptr_t value) : bits(value) &#123; &#125;</span><br><span class="line"></span><br><span class="line">    Class cls;</span><br><span class="line">    uintptr_t bits;</span><br><span class="line">#if defined(ISA_BITFIELD)</span><br><span class="line">    struct &#123;</span><br><span class="line">        ISA_BITFIELD;  &#x2F;&#x2F; defined in isa.h</span><br><span class="line">    &#125;;</span><br><span class="line">#endif</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
+
+<p>这是说：任何以指向 class 结构的指针开头的结构都可以视为 <code>objc_object</code>。</p>
+<p>Objective-C 中对象的最重要特征是你可以向它们发送消息：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">[@&quot;stringValue&quot;</span><br><span class="line">    writeToFile:@&quot;&#x2F;file.txt&quot; atomically:YES encoding:NSUTF8StringEncoding error:NULL];</span><br></pre></td></tr></table></figure>
+
+<p>之所以可行，是因为当你向 Objective-C object （如此处的 <code>NSCFString</code>）发送消息时，runtime 将遵循 object 的 isa 指针来获取 object 的 class（在本例中为<code>NSCFString</code> class）。然后，该 class  包含适用于该 class 的所有 object 的 Methods 列表以及指向 superclass 以查找继承 methods 的指针。runtime 在 class 和 superclass 上的 methods 列表中查找，以找到与 message selector 相匹配的 method（在上述情况下： NSString 上的<code>writeToFile:atomically:encoding:error</code> ）。然后 runtime 调用该 method 的函数（<code>IMP</code>）。</p>
+<p>重要的是 class 定义了可以发送到 object 的消息。</p>
+<h2 id="什么是-meta-class"><a href="#什么是-meta-class" class="headerlink" title="什么是 meta-class?"></a>什么是 meta-class?</h2><p>现在，你可能已经知道，Objective-C 中的 class 也是一个 object。这意味着您可以向 class 发送消息。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">NSStringEncoding defaultStringEncoding &#x3D; [NSString defaultStringEncoding];</span><br></pre></td></tr></table></figure>
+
+<p>在这种情况下，<code>defaultStringEncoding</code> 发送到 <code>NSString class</code>。</p>
 
       
     </div>
