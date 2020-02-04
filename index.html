@@ -218,7 +218,7 @@
                   <i class="fa fa-calendar-check-o"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2020-02-03 13:20:50" itemprop="dateModified" datetime="2020-02-03T13:20:50+08:00">2020-02-03</time>
+                <time title="Modified: 2020-02-04 20:38:51" itemprop="dateModified" datetime="2020-02-04T20:38:51+08:00">2020-02-04</time>
               </span>
 
           
@@ -270,6 +270,38 @@
 <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">NSStringEncoding defaultStringEncoding &#x3D; [NSString defaultStringEncoding];</span><br></pre></td></tr></table></figure>
 
 <p>在这种情况下，<code>defaultStringEncoding</code> 发送到 <code>NSString class</code>。</p>
+<p>这之所以有效，是因为 Objective-C 中的每个 class 都是一个 object 本身。这意味着 class 结构必须从 isa 指针开始，以便它与上面显示的 <code>objc_object</code> 结构二进制兼容，并且结构中的下一个字段必须是指向 <code>superclass</code>(或 base classes 为 nil)。</p>
+<p><a href="http://www.cocoawithlove.com/2010/01/getting-subclasses-of-objective-c-class.html" target="_blank" rel="noopener">As I showed last week</a>，根据正在运行的 runtime 的版本，可以定义 class 的两种不同的方式，但是它们都是从 isa 字段开始，然后是 superclass 字段。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line">&#x2F;&#x2F;&#x2F; 旧版</span><br><span class="line">typedef struct objc_class *Class;</span><br><span class="line">struct objc_class &#123;</span><br><span class="line">    Class _Nonnull isa  OBJC_ISA_AVAILABILITY;</span><br><span class="line"></span><br><span class="line">#if !__OBJC2__</span><br><span class="line">    Class _Nullable super_class                              OBJC2_UNAVAILABLE;</span><br><span class="line">    const char * _Nonnull name                               OBJC2_UNAVAILABLE;</span><br><span class="line">    long version                                             OBJC2_UNAVAILABLE;</span><br><span class="line">    long info                                                OBJC2_UNAVAILABLE;</span><br><span class="line">    long instance_size                                       OBJC2_UNAVAILABLE;</span><br><span class="line">    struct objc_ivar_list * _Nullable ivars                  OBJC2_UNAVAILABLE;</span><br><span class="line">    struct objc_method_list * _Nullable * _Nullable methodLists                    OBJC2_UNAVAILABLE;</span><br><span class="line">    struct objc_cache * _Nonnull cache                       OBJC2_UNAVAILABLE;</span><br><span class="line">    struct objc_protocol_list * _Nullable protocols          OBJC2_UNAVAILABLE;</span><br><span class="line">#endif</span><br><span class="line"></span><br><span class="line">&#125; OBJC2_UNAVAILABLE;</span><br><span class="line">&#x2F;* Use &#96;Class&#96; instead of &#96;struct objc_class *&#96; *&#x2F;</span><br></pre></td></tr></table></figure>
+
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line">&#x2F;&#x2F;&#x2F; 新版</span><br><span class="line">typedef struct objc_class *Class;</span><br><span class="line">struct objc_class : objc_object &#123; &#x2F;&#x2F; 继承自 objc_object,所以同时拥有 isa_t isa 成员变量</span><br><span class="line">    &#x2F;&#x2F; Class ISA;</span><br><span class="line">    Class superclass;</span><br><span class="line">    cache_t cache;             &#x2F;&#x2F; formerly cache pointer and vtable</span><br><span class="line">    class_data_bits_t bits;    &#x2F;&#x2F; class_rw_t * plus custom rr&#x2F;alloc flags</span><br><span class="line"></span><br><span class="line">    class_rw_t *data() &#123; </span><br><span class="line">        return bits.data();</span><br><span class="line">    &#125;</span><br><span class="line">    void setData(class_rw_t *newData) &#123;</span><br><span class="line">        bits.setData(newData);</span><br><span class="line">    &#125;</span><br><span class="line">    ...</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
+
+<p>但是，为了让我们在 Class 上调用 method，Class 的 isa 指针必须指向 Class 结构，并且 Class 结构必须包含我们可以在 Class 上调用的 Methods 列表。</p>
+<p>这将导致 meta-class 的定义：meta-class 是 Class object 的 class。</p>
+<p>When you send a message to a class, that message is looked up in the method list on the class’ meta-class.</p>
+<p>简单的说:</p>
+<ul>
+<li>当你向 object 发送消息时，将在 object 的 class 的 method 列表中查找该消息。</li>
+<li>当你向 class 发送消息时，将在 class 的 meta-class 的 method 列表中查找该消息。</li>
+</ul>
+<p>meta-class 是必不可少的，因为它存储了 Class 的 class methods。每个 Class 必须有一个唯一的 meta-class，因为每个 Class 都有一个可能唯一的 class methods 列表。</p>
+<h2 id="meta-class-的-class-是什么？"><a href="#meta-class-的-class-是什么？" class="headerlink" title="meta-class 的 class 是什么？"></a>meta-class 的 class 是什么？</h2><p>像之前的 Class 一样，meta-class 也是一个 object。这意味着你也可以在其上调用方法。自然，这意味着它还必须具有一个 class。</p>
+<p>所有 meta-class 都使用 base class 的 meta-class（其继承层次结构中顶级 Class 的 meta-class）作为其 class。这意味着对于从 NSObject 派生的所有 classes（大多数 class）的 meta-class 都将 NSObject meta-class 作为其 class。</p>
+<p>遵循所有 meta-class 都将 base class 的 meta-class 用作其 class 的规则，任何 base meta-class 都将是其自己的 class（它们的 isa 指针指向自己）。这意味着 NSObject meta-class 上的 isa 指针指向自身（它是自身的实例）。</p>
+<h2 id="classes-和-meta-classes-的继承"><a href="#classes-和-meta-classes-的继承" class="headerlink" title="classes 和 meta-classes 的继承"></a>classes 和 meta-classes 的继承</h2><p>与 Class 使用其 super_class 指针指向 superclass 的方式相同，meta-class 使用其自身的 super_class 指针指向 class 的 super_class 的 meta-class。</p>
+<p>作为进一步的怪癖，base class 的 meta-class  将其 <code>super_class</code> 设置为 base class 本身。</p>
+<p>这种继承层次结构的结果是，层次结构中的所有实例，classes 和 meta-class 都继承自层次结构的 base class。</p>
+<p>对于 NSObject 层次结构中的 class 和 meta-class 的所有实例，这意味着所有 NSObject instance methods 均有效。对于 classes 和 meta-class，所有 NSObject class methods 也都有效。</p>
+<p>所有的这些文本可能都比较混乱，可参考 <a href="http://www.sealiesoftware.com/blog/" target="_blank" rel="noopener">Greg Parker</a> 的更详细的总结: <a href="http://www.sealiesoftware.com/blog/archive/2009/04/14/objc_explain_Classes_and_metaclasses.html" target="_blank" rel="noopener">excellent diagram of instances, classes, meta-classes and their super classes</a> 。</p>
+<h2 id="实验验证"><a href="#实验验证" class="headerlink" title="实验验证"></a>实验验证</h2><p>为了确认所有这些，让我们看一下在本文开头给出的 <code>ReportFunction</code> 的输出。该功能的目的是遵循 isa 指针并记录其发现的内容。</p>
+<p>要运行 <code>ReportFunction</code>，我们需要创建动态创建的 class 的 instance 并在其上调用 <code>report</code>方法。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">id instanceOfNewClass &#x3D;</span><br><span class="line">    [[newClass alloc] initWithDomain:@&quot;someDomain&quot; code:0 userInfo:nil];</span><br><span class="line">[instanceOfNewClass performSelector:@selector(report)];</span><br><span class="line">[instanceOfNewClass release];</span><br></pre></td></tr></table></figure>
+
+
+
+<h2 id="Conclusion"><a href="#Conclusion" class="headerlink" title="Conclusion"></a>Conclusion</h2><p>meta-class 是 Class object 的 class。每个 Class 都有自己的唯一 meta-class（因为每个 Class 都可以具有自己的唯一 methods 列表）。这意味着所有 Class object 本身都不都是同一个 class。</p>
+<p>meta-class 将始终确保 Class object 具有层次结构中 base class 的所有 instance 和 class methods，以及介于两者之间的所有 class methods。对于从 NSObject 继承的 classes，这意味着所有 Class（和 meta-class）objects 定义了所有 NSObject instance 和 protocol methods。</p>
+<p>所有 meta-class 本身都使用 base class 的 meta-class（NSObject 层次结构 classes 的 NSObject meta-class）作为其类，包括 base level meta-class，它是 runtime 中唯一的自定义 class。</p>
 
       
     </div>
