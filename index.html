@@ -201,7 +201,7 @@
       <header class="post-header">
         <h1 class="post-title" itemprop="name headline">
           
-            <a href="/2020/01/17/hello-world/" class="post-title-link" itemprop="url">什么是 Objective-C 中的 meta-class(元类)?</a>
+            <a href="/2020/01/17/hello-world/" class="post-title-link" itemprop="url">翻译：什么是 Objective-C 中的 meta-class(元类)?</a>
         </h1>
 
         <div class="post-meta">
@@ -218,7 +218,7 @@
                   <i class="fa fa-calendar-check-o"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2020-02-04 20:38:51" itemprop="dateModified" datetime="2020-02-04T20:38:51+08:00">2020-02-04</time>
+                <time title="Modified: 2020-02-05 18:50:15" itemprop="dateModified" datetime="2020-02-05T18:50:15+08:00">2020-02-05</time>
               </span>
 
           
@@ -232,7 +232,8 @@
     <div class="post-body" itemprop="articleBody">
 
       
-          <blockquote>
+          <p>原文：<a href="http://www.cocoawithlove.com/2010/01/what-is-meta-class-in-objective-c.html" target="_blank" rel="noopener">What is a meta-class in Objective-C?</a></p>
+<blockquote>
 <p>Please note: 本文是 “Cocoa With love” 上较旧的 “Objective-C era” 的一部分。这些文章不在更新，<br>请注意损坏的代码和可能过时的信息。 请阅读 “A new era for Cocoa with Love” 以了解更高。</p>
 </blockquote>
 <p> 在这篇文章中，我们来研究一下 Objective-C 中一个相对陌生的概念 meta-class。Objective-C 中每个 class 都有自己关联的 meta-class 但是由于我们很少直接使用 meta-class，所以它们能保持神秘。我们将从如何在 runtime 中创建类开始。通过仔细检查由此创建的 “class pair”, 我们将解释什么是 “meta-class” 并涵盖更广泛的主题，即数据成为 Objective-C 中的 object 或 class 意味着什么。</p>
@@ -297,8 +298,23 @@
 <p>要运行 <code>ReportFunction</code>，我们需要创建动态创建的 class 的 instance 并在其上调用 <code>report</code>方法。</p>
 <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">id instanceOfNewClass &#x3D;</span><br><span class="line">    [[newClass alloc] initWithDomain:@&quot;someDomain&quot; code:0 userInfo:nil];</span><br><span class="line">[instanceOfNewClass performSelector:@selector(report)];</span><br><span class="line">[instanceOfNewClass release];</span><br></pre></td></tr></table></figure>
 
+<p>由于没有<code>report</code>方法的声明，因此我们使用<code>performSelector:</code>调用它，因此编译器不会发出警告。</p>
+<p>现在，<code>ReportFunction</code>将遍历 isa 指针，并告诉我们哪些对象用作 class、meta-class 和 meta-class 的 class。</p>
+<blockquote>
+<p>获取 object 的 class：<code>ReportFunction</code>使用 <code>object-getClass</code>跟随 isa 指针，因为 isa 指针是 class 的受保护成员（你不能直接访问其他 object 的 isa 指针）。<code>ReportFunction</code>不使用 class method 来执行此操作，因为在 Class object 上调用 class method 不会返回 meta-class，而是会再次返回该 Class（因此 [NSString class] 将返回 NSString class 而不是 NSString meta-class）。</p>
+</blockquote>
+<p>这是程序运行时的输出（去掉了 NSLog 前缀）：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">This object is 0x10010c810.</span><br><span class="line">Class is RuntimeErrorSubclass, and super is NSError.</span><br><span class="line">Following the isa pointer 1 times gives 0x10010c600</span><br><span class="line">Following the isa pointer 2 times gives 0x10010c630</span><br><span class="line">Following the isa pointer 3 times gives 0x7fff71038480</span><br><span class="line">Following the isa pointer 4 times gives 0x7fff71038480</span><br><span class="line">NSObject&#39;s class is 0x7fff710384a8</span><br><span class="line">NSObject&#39;s meta class is 0x7fff71038480</span><br></pre></td></tr></table></figure>
 
-
+<p>反复查看 isa 值以查看到达的地址：</p>
+<ul>
+<li>object 地址 <code>0x10010c810</code>。</li>
+<li>class 地址 <code>0x10010c600</code>。</li>
+<li>meta-class 地址 <code>0x10010c630</code>。</li>
+<li>meta-class 的 class（例如 NSObject meta-class）地址 <code>0x7fff71038480</code>。</li>
+<li>NSObject meta-class 的 class 是它自己。</li>
+</ul>
+<p>地址的值是多少不是很重要，只是它显示了从 class 到 meta-class 再到 NSObject meta-class 的进度。</p>
 <h2 id="Conclusion"><a href="#Conclusion" class="headerlink" title="Conclusion"></a>Conclusion</h2><p>meta-class 是 Class object 的 class。每个 Class 都有自己的唯一 meta-class（因为每个 Class 都可以具有自己的唯一 methods 列表）。这意味着所有 Class object 本身都不都是同一个 class。</p>
 <p>meta-class 将始终确保 Class object 具有层次结构中 base class 的所有 instance 和 class methods，以及介于两者之间的所有 class methods。对于从 NSObject 继承的 classes，这意味着所有 Class（和 meta-class）objects 定义了所有 NSObject instance 和 protocol methods。</p>
 <p>所有 meta-class 本身都使用 base class 的 meta-class（NSObject 层次结构 classes 的 NSObject meta-class）作为其类，包括 base level meta-class，它是 runtime 中唯一的自定义 class。</p>
