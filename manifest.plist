@@ -11,19 +11,19 @@
 					<key>kind</key>
 					<string>software-package</string>
 					<key>url</key>
-					<string>https://chm994483868.github.io/ZHouse-iOS.ipa</string>
+					<string>https://github.com/chm994483868/chm994483868.github.io/raw/master/ZHouse-iOS.ipa</string>
 				</dict>
 				<dict>
 					<key>kind</key>
 					<string>display-image</string>
 					<key>url</key>
-					<string>https://chm994483868.github.io/ZHouse-iOS.57x57.png</string>
+					<string>https://github.com/chm994483868/chm994483868.github.io/raw/master/ZHouse-iOS.57x57.png</string>
 				</dict>
 				<dict>
 					<key>kind</key>
 					<string>full-size-image</string>
 					<key>url</key>
-					<string>https://chm994483868.github.io/ZHouse-iOS.512x512.png</string>
+					<string>https://github.com/chm994483868/chm994483868.github.io/raw/master/ZHouse-iOS.512x512.png</string>
 				</dict>
 			</array>
 			<key>metadata</key>
